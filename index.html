@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flight Planner</title>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css">
+    <link rel="stylesheet" href="static/styles.css">
+</head>
+<body>
+<div id="app">
+
+    <div id="sidebar">
+
+        <div class="sidebar-header">
+            <div class="logo-wrap">
+                <img src="static/logo.png" alt="Sniffer" class="logo-img">
+            </div>
+            <div>
+                <h1>Flight Planner</h1>
+                <div class="subtitle">Drone path generation</div>
+            </div>
+        </div>
+
+        <!-- Go to Location -->
+        <div class="section">
+            <div class="section-title">Go to Location</div>
+            <label for="locationInput">Address or GPS coordinates</label>
+            <div class="row">
+                <input type="text" id="locationInput" placeholder="e.g. Austin TX  or  30.26, -97.74">
+                <button class="btn-icon btn-primary" id="locationGoBtn" title="Go">↵</button>
+            </div>
+            <div id="locationStatus"></div>
+        </div>
+
+        <!-- Work Area -->
+        <div class="section">
+            <div class="section-title">Work Area</div>
+            <label for="workAreaFile">GeoJSON or field uploader config (optional)</label>
+            <input type="file" id="workAreaFile" accept=".geojson,.json">
+            <button class="btn-primary mt" id="loadWorkAreaBtn">Load Work Area</button>
+
+            <label for="geotiffFile" style="margin-top:10px">GeoTIFF overlay (optional)</label>
+            <input type="file" id="geotiffFile" accept=".tif,.tiff">
+            <div class="row mt">
+                <button id="loadGeotiffBtn">Load GeoTIFF</button>
+                <button id="clearGeotiffBtn" style="flex:0 0 56px;font-size:10px">Clear</button>
+            </div>
+            <div class="info-line" id="geotiffStatus"></div>
+        </div>
+
+        <!-- Flight Plans -->
+        <div class="section">
+            <div class="section-title">Flight Plans</div>
+
+            <label for="planSelect">Active plan</label>
+            <select id="planSelect" disabled>
+                <option value="">(no plans)</option>
+            </select>
+
+            <label for="planNameInput">Plan name</label>
+            <div class="row mt">
+                <input type="text" id="planNameInput" placeholder="Plan name">
+                <button id="renamePlanBtn" style="flex:0 0 68px">Rename</button>
+            </div>
+        </div>
+
+        <!-- Parameters -->
+        <div class="section">
+            <div class="section-title">Path Parameters</div>
+
+            <label for="spacingInput">Path spacing (m)</label>
+            <input type="number" id="spacingInput" min="1" step="0.5" value="15">
+
+            <label for="orientationInput">Orientation (deg)</label>
+            <div class="row mt">
+                <button class="orient-btn" id="rotCCW5Btn" title="Rotate −5°">−5°</button>
+                <button class="orient-btn" id="rotCCW1Btn" title="Rotate −1°">−1°</button>
+                <input type="number" id="orientationInput" min="0" max="360" step="1" value="0" style="text-align:center">
+                <button class="orient-btn" id="rotCW1Btn"  title="Rotate +1°">+1°</button>
+                <button class="orient-btn" id="rotCW5Btn"  title="Rotate +5°">+5°</button>
+            </div>
+            <button id="autoOrientBtn" class="mt" style="font-size:10px">Auto detect</button>
+
+            <button class="btn-primary mt" id="generateBtn">Generate Flight Plan</button>
+
+            <div class="row mt">
+                <button id="shiftNegBtn">← Shift</button>
+                <button id="shiftPosBtn">Shift →</button>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="section">
+            <div class="section-title">Actions</div>
+
+            <button class="btn-warn" id="editBoundaryBtn">Edit Boundary</button>
+            <button class="btn-warn mt" id="editPointsBtn">Edit Path Points</button>
+
+            <div class="row mt">
+                <button class="btn-info" id="saveActiveBtn">Save Active</button>
+                <button class="btn-info" id="saveAllBtn">Save All</button>
+            </div>
+
+            <button class="btn-danger mt" id="deletePlanBtn">Delete Active Plan</button>
+        </div>
+
+        <!-- Import -->
+        <div class="section">
+            <div class="section-title">Import KMZ</div>
+            <input type="file" id="importKmzFile" accept=".kmz,.KMZ">
+            <button class="btn-primary mt" id="importKmzBtn">Import KMZ as Flight Plan</button>
+        </div>
+
+        <!-- Coverage -->
+        <div class="section">
+            <div class="section-title">Coverage</div>
+            <button class="btn-success" id="toggleCoverageBtn">Show Coverage Blob</button>
+            <div class="info-line" id="coverageInfo"></div>
+            <div class="info-line" id="distanceInfo"></div>
+        </div>
+
+    </div>
+
+    <div id="map"></div>
+
+<!-- Map context menu (point editing) -->
+<div id="ctxMenu" class="point-menu hidden"></div>
+</div>
+
+<!-- Leaflet -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+
+<!-- Turf (geometry) -->
+<script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
+
+<!-- JSZip (KMZ) -->
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+
+<!-- GeoTIFF (client-side raster overlay) -->
+<script src="https://cdn.jsdelivr.net/npm/georaster@1.6.0/dist/georaster.browser.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/georaster-layer-for-leaflet@3.10.0/dist/georaster-layer-for-leaflet.min.js"></script>
+
+<script src="static/main.js"></script>
+</body>
+</html>
