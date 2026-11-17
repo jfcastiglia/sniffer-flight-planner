@@ -622,6 +622,27 @@ function rebuildPathFromMarkers(plan) {
     };
     drawPath(plan);
     updateInfoPanel(plan);
+    if (plan.showCoverage) {
+        clearTimeout(plan._coverageTimer);
+        plan._coverageTimer = setTimeout(() => {
+            const latLngs = plan.extentLayer.getLatLngs()[0];
+            plan.coverage = computeCoverage(plan.pathFeature, latLngs, plan.spacing);
+            clearCoverage(plan);
+            if (plan.coverage?.covered) {
+                plan.coverageLayer = L.geoJSON(plan.coverage.covered, {
+                    style: { color: "#00e5b4", weight: 0, fillColor: "#00e5b4", fillOpacity: 0.22 },
+                    pane: "coveragePane",
+                }).addTo(map);
+            }
+            if (plan.coverage?.missing) {
+                plan.missingLayer = L.geoJSON(plan.coverage.missing, {
+                    style: { color: "#ff4d4d", weight: 0, fillColor: "#ff4d4d", fillOpacity: 0.30 },
+                    pane: "coveragePane",
+                }).addTo(map);
+            }
+            updateInfoPanel(plan);
+        }, 150);
+    }
 }
 
 function insertPoint(plan, clickLL) {
