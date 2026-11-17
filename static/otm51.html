@@ -1,0 +1,779 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OTM-51 Recheck Scheduler</title>
+<style>
+:root{
+  --bg:#f6f7f9; --panel:#ffffff; --ink:#1b1f24; --muted:#5f6b7a; --line:#dfe3e8; --soft:#eef1f4;
+  --accent:#1f6feb; --accent-ink:#fff;
+  --ok:#1a7f37; --ok-bg:#dafbe1; --warn:#9a6700; --warn-bg:#fff3c4; --bad:#c62828; --bad-bg:#ffe1e1;
+  --info:#0b5cad; --info-bg:#ddeeff; --nn:#7d8590; --nn-bg:#eef0f2;
+  --s-init:#475569; --s-d10:#0f8a8a; --s-d20:#b7791f; --s-m1:#7c3aed; --s-p10:#c2410c;
+  --weekend:#f1f3f6;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0f1216; --panel:#171b21; --ink:#e6e9ed; --muted:#9aa5b1; --line:#2a313a; --soft:#1f252d;
+  --accent:#4c8dff; --accent-ink:#fff;
+  --ok:#56d364; --ok-bg:#12321b; --warn:#e3b341; --warn-bg:#3a2e0b; --bad:#ff7b72; --bad-bg:#3d1414;
+  --info:#79b8ff; --info-bg:#10263f; --nn:#8b949e; --nn-bg:#21262d;
+  --s-init:#94a3b8; --s-d10:#2dd4bf; --s-d20:#fbbf24; --s-m1:#a78bfa; --s-p10:#fb923c;
+  --weekend:#13171c;
+}}
+:root[data-theme="dark"]{
+  --bg:#0f1216; --panel:#171b21; --ink:#e6e9ed; --muted:#9aa5b1; --line:#2a313a; --soft:#1f252d;
+  --accent:#4c8dff; --accent-ink:#fff;
+  --ok:#56d364; --ok-bg:#12321b; --warn:#e3b341; --warn-bg:#3a2e0b; --bad:#ff7b72; --bad-bg:#3d1414;
+  --info:#79b8ff; --info-bg:#10263f; --nn:#8b949e; --nn-bg:#21262d;
+  --s-init:#94a3b8; --s-d10:#2dd4bf; --s-d20:#fbbf24; --s-m1:#a78bfa; --s-p10:#fb923c;
+  --weekend:#13171c;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{background:var(--panel);border-bottom:1px solid var(--line);padding:14px 16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+header h1{font-size:18px;margin:0 12px 0 0;font-weight:650}
+header .sp{flex:1}
+button,select,input,textarea{font:inherit;color:inherit}
+button{background:var(--soft);border:1px solid var(--line);border-radius:7px;padding:6px 11px;cursor:pointer}
+button:hover{border-color:var(--muted)}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button.danger{color:var(--bad)}
+button.link{background:none;border:none;color:var(--accent);padding:0;cursor:pointer}
+select,input[type=text],input[type=date],input[type=search],input[type=number],textarea{background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:6px 8px}
+main{padding:16px;max-width:1500px;margin:0 auto}
+.tabs{display:flex;gap:4px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+.tabs button.tab{background:none;border:1px solid transparent;border-radius:7px}
+.tabs button.tab.on{background:var(--panel);border-color:var(--line);font-weight:600}
+.tabs .filters{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.summary{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:8px 14px;min-width:120px}
+.stat b{display:block;font-size:20px}
+.stat span{color:var(--muted);font-size:12px}
+.wrap{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:1100px}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-size:12px;color:var(--muted);font-weight:600;background:var(--soft);position:sticky;top:0}
+th .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+td.site{min-width:190px}
+td.site .nm{font-weight:600;cursor:pointer}
+td.site .nm:hover{text-decoration:underline}
+td.site .meta{color:var(--muted);font-size:12px}
+.cell{border:1px solid var(--line);border-radius:8px;padding:6px 8px;cursor:pointer;min-width:132px;background:var(--panel)}
+.cell:hover{border-color:var(--accent)}
+.cell .dt{font-weight:600}
+.cell .by{font-size:11.5px;color:var(--muted)}
+.cell.nn{background:var(--nn-bg);border-style:dashed}
+.cell.nn .dt{color:var(--nn);font-weight:400}
+.pill{display:inline-block;font-size:11px;font-weight:600;padding:1px 7px;border-radius:999px;margin-top:3px}
+.p-ok{color:var(--ok);background:var(--ok-bg)} .p-warn{color:var(--warn);background:var(--warn-bg)}
+.p-bad{color:var(--bad);background:var(--bad-bg)} .p-info{color:var(--info);background:var(--info-bg)}
+.p-nn{color:var(--nn);background:var(--nn-bg)}
+.flag{font-size:11px;color:var(--warn);margin-top:2px}
+.empty{padding:40px;text-align:center;color:var(--muted)}
+/* agenda */
+.agenda h3{font-size:13px;color:var(--muted);margin:18px 0 6px;text-transform:uppercase;letter-spacing:.04em}
+.ag{display:grid;grid-template-columns:120px 1fr auto;gap:10px;align-items:center;background:var(--panel);border:1px solid var(--line);border-left-width:4px;border-radius:8px;padding:8px 12px;margin-bottom:6px;cursor:pointer}
+.ag:hover{border-color:var(--accent)}
+.ag .w{font-weight:600}
+.ag .s{color:var(--muted);font-size:12px}
+/* calendar */
+.calhead{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.calhead h2{font-size:16px;margin:0;min-width:160px}
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--line);gap:1px}
+.cal .dow{background:var(--soft);font-size:12px;color:var(--muted);padding:6px;font-weight:600}
+.cal .day{background:var(--panel);min-height:96px;padding:4px 5px}
+.cal .day.we{background:var(--weekend)}
+.cal .day.out{opacity:.45}
+.cal .day.today .n{background:var(--accent);color:var(--accent-ink);border-radius:999px;padding:0 6px}
+.cal .n{font-size:12px;color:var(--muted);display:inline-block;margin-bottom:2px}
+.cal .hol{display:block;font-size:10.5px;color:var(--bad);margin:-2px 0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chip{display:block;font-size:11.5px;border-radius:5px;padding:2px 5px;margin-bottom:2px;cursor:pointer;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chip.tent{opacity:.6;border:1px dashed rgba(255,255,255,.7)}
+.chip.dueline{background:none!important;color:var(--bad);border:1px solid var(--bad)}
+/* dialog */
+dialog{border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--ink);padding:0;width:min(520px,calc(100vw - 32px))}
+dialog::backdrop{background:rgba(0,0,0,.4)}
+dialog form{padding:18px}
+dialog h2{margin:0 0 4px;font-size:17px}
+dialog .sub{color:var(--muted);margin-bottom:12px}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:600}
+.field input[type=text],.field input[type=date],.field textarea{width:100%}
+.rule{background:var(--soft);border-radius:8px;padding:8px 10px;margin-bottom:12px;font-size:13px}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg button.on{outline:2px solid var(--accent);outline-offset:-1px;font-weight:600}
+.acts{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap}
+.acts .left{margin-right:auto;display:flex;gap:8px}
+.hint{font-size:12px;color:var(--muted);margin-top:3px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin:10px 2px}
+@media (max-width:640px){ header h1{width:100%} .ag{grid-template-columns:1fr} .cal .day{min-height:70px} .chip{font-size:10px} }
+@media print{ header,.tabs .filters,.acts{display:none} body{background:#fff} }
+</style>
+</head>
+<body>
+<header>
+  <h1>OTM-51 Recheck Scheduler</h1>
+  <button class="primary" id="btnAdd">+ Add site / initial</button>
+  <button id="btnPlanQ">Plan a quarter</button>
+  <span class="sp"></span>
+  <button id="btnIcs" title="Calendar file of all open inspections (Outlook / Google)">Export calendar (.ics)</button>
+  <button id="btnCsv" title="Same columns as the quarterly spreadsheet">Export CSV</button>
+  <button id="btnBackup">Backup</button>
+  <button id="btnRestore">Restore</button>
+  <button id="btnSettings">Settings</button>
+  <input type="file" id="fileRestore" accept=".json" hidden>
+</header>
+<main>
+  <div class="tabs">
+    <button class="tab on" data-view="table">Schedule</button>
+    <button class="tab" data-view="agenda">Upcoming</button>
+    <button class="tab" data-view="cal">Calendar</button>
+    <div class="filters">
+      <select id="fQuarter"></select>
+      <select id="fShow">
+        <option value="open">Open sites</option>
+        <option value="all">All sites</option>
+        <option value="done">Completed sites</option>
+      </select>
+      <input type="search" id="fSearch" placeholder="Search site / owner">
+    </div>
+  </div>
+  <div class="summary" id="summary"></div>
+  <div id="view"></div>
+  <div class="legend">
+    <span><span class="pill p-info">Scheduled</span> auto-planned</span>
+    <span><span class="pill p-nn">Tentative</span> only needed if the previous recheck finds exceedances</span>
+    <span><span class="pill p-warn">Due soon / Needs result</span></span>
+    <span><span class="pill p-bad">Past limit / Overdue</span></span>
+    <span><span class="pill p-ok">No exceedances</span></span>
+  </div>
+</main>
+
+<dialog id="dlgStep"><form method="dialog" id="formStep"></form></dialog>
+<dialog id="dlgSite"><form method="dialog" id="formSite"></form></dialog>
+<dialog id="dlgQuarter"><form method="dialog" id="formQuarter"></form></dialog>
+<dialog id="dlgSettings"><form method="dialog" id="formSettings"></form></dialog>
+
+<script>
+/* ---------------- Dates (ISO strings, UTC math) ---------------- */
+const D = {
+  parse: s => new Date(s + 'T00:00:00Z'),
+  iso: d => d.toISOString().slice(0, 10),
+  add: (s, n) => { const d = D.parse(s); d.setUTCDate(d.getUTCDate() + n); return D.iso(d); },
+  dow: s => D.parse(s).getUTCDay(),
+  diff: (a, b) => Math.round((D.parse(a) - D.parse(b)) / 864e5), // a - b, in days
+  today: () => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`; },
+  fmt: (s, o = {weekday:'short', month:'short', day:'numeric'}) => s ? D.parse(s).toLocaleDateString(undefined, {...o, timeZone:'UTC'}) : '',
+  fmtY: s => D.fmt(s, {weekday:'short', month:'short', day:'numeric', year:'numeric'}),
+  quarter: s => { const d = D.parse(s); return `${d.getUTCFullYear()} Q${Math.floor(d.getUTCMonth()/3)+1}`; },
+  addMonths: (s, n) => { // same day n months later, clamped to month end
+    const [y, m, d] = s.split('-').map(Number), i = y * 12 + (m - 1) + n, ty = Math.floor(i / 12), tm = i % 12;
+    const last = new Date(Date.UTC(ty, tm + 1, 0)).getUTCDate();
+    return `${ty}-${String(tm + 1).padStart(2, '0')}-${String(Math.min(d, last)).padStart(2, '0')}`;
+  },
+};
+/* Quarters look like "2027 Q1". A site event's quarter comes from its Initial date, or from its planned quarter until a date is set. */
+const Q = {
+  of: site => site.steps.init.date ? D.quarter(site.steps.init.date) : (site.quarter || ''),
+  idx: q => +q.slice(0, 4) * 4 + (+q.slice(-1) - 1),
+  shift: (q, n) => { const i = Q.idx(q) + n; return `${Math.floor(i / 4)} Q${i % 4 + 1}`; },
+  range: (q, back, fwd) => Array.from({length: back + fwd + 1}, (_, i) => Q.shift(q, i - back)),
+};
+/* US holidays, calculated for any year (observed dates: Saturday → Friday, Sunday → Monday) */
+const H = {
+  pad: n => String(n).padStart(2, '0'),
+  obs: s => { const w = D.dow(s); return w === 6 ? D.add(s, -1) : w === 0 ? D.add(s, 1) : s; },
+  nth: (y, m, dow, n) => { const f = `${y}-${H.pad(m)}-01`; return D.add(f, (dow - D.dow(f) + 7) % 7 + 7 * (n - 1)); },
+  last: (y, m, dow) => { const l = D.add(m === 12 ? `${y + 1}-01-01` : `${y}-${H.pad(m + 1)}-01`, -1); return D.add(l, -((D.dow(l) - dow + 7) % 7)); },
+};
+const HOLIDAYS = [
+  {k:'newyear',    name:"New Year's Day",             on:true,  f:y => H.obs(`${y}-01-01`)},
+  {k:'mlk',        name:'Martin Luther King Jr. Day', on:true,  f:y => H.nth(y, 1, 1, 3)},
+  {k:'pres',       name:"Presidents' Day",            on:true,  f:y => H.nth(y, 2, 1, 3)},
+  {k:'memorial',   name:'Memorial Day',               on:true,  f:y => H.last(y, 5, 1)},
+  {k:'juneteenth', name:'Juneteenth',                 on:true,  f:y => H.obs(`${y}-06-19`)},
+  {k:'july4',      name:'Independence Day',           on:true,  f:y => H.obs(`${y}-07-04`)},
+  {k:'labor',      name:'Labor Day',                  on:true,  f:y => H.nth(y, 9, 1, 1)},
+  {k:'columbus',   name:'Columbus Day',               on:true,  f:y => H.nth(y, 10, 1, 2)},
+  {k:'veterans',   name:'Veterans Day',               on:true,  f:y => H.obs(`${y}-11-11`)},
+  {k:'thanks',     name:'Thanksgiving',               on:true,  f:y => H.nth(y, 11, 4, 4)},
+  {k:'blackfri',   name:'Day after Thanksgiving',     on:false, f:y => D.add(H.nth(y, 11, 4, 4), 1)},
+  {k:'xmaseve',    name:'Christmas Eve',              on:false, f:y => `${y}-12-24`},
+  {k:'xmas',       name:'Christmas Day',              on:true,  f:y => H.obs(`${y}-12-25`)},
+];
+const holCache = {};
+function holidayName(s){
+  const y = +s.slice(0, 4), on = new Set(db.settings.skipHolidays || []);
+  if (!holCache[y]){
+    holCache[y] = {};
+    [y, y + 1].forEach(yy => HOLIDAYS.forEach(h => { const d = h.f(yy); if (+d.slice(0, 4) === y) holCache[y][d] = (holCache[y][d] || []).concat(h); }));
+  }
+  const hit = (holCache[y][s] || []).find(h => on.has(h.k));
+  if (hit) return hit.name;
+  return (db.settings.holidays || []).includes(s) ? 'Holiday' : '';
+}
+
+/* ---------------- Steps ---------------- */
+const STEPS = [
+  {k:'init', label:'Initial',     color:'var(--s-init)'},
+  {k:'d10',  label:'10 Day',      color:'var(--s-d10)'},
+  {k:'d20',  label:'20 Day',      color:'var(--s-d20)'},
+  {k:'m1',   label:'One Month',   color:'var(--s-m1)'},
+  {k:'p10',  label:'Plus 10 Day', color:'var(--s-p10)'},
+];
+const LABEL = Object.fromEntries(STEPS.map(s => [s.k, s.label]));
+const COLOR = Object.fromEntries(STEPS.map(s => [s.k, s.color]));
+
+/* ---------------- State ---------------- */
+const KEY = 'atm51-scheduler-v1';
+const uid = () => Math.random().toString(36).slice(2, 10);
+let db = load();
+function blankSteps(){ return Object.fromEntries(STEPS.map(s => [s.k, {date:'', override:'', completed:'', result:'', canceled:false}])); }
+function load(){
+  let d = null;
+  try { const raw = localStorage.getItem(KEY); if (raw) d = JSON.parse(raw); } catch(e) {}
+  if (!d) d = {settings:{}, sites: null};
+  d.settings = migrateSettings(d.settings);
+  if (!d.sites) d.sites = seed();
+  return d;
+}
+function migrateSettings(s){
+  s = {m1Target:30, soonDays:3, holidays:[], ...(s || {})};
+  if (!Array.isArray(s.skipHolidays)) s.skipHolidays = HOLIDAYS.filter(h => h.on).map(h => h.k); // holidays avoided by default
+  return s;
+}
+function save(){ try { localStorage.setItem(KEY, JSON.stringify(db)); } catch(e) {} }
+
+/* ---------------- Scheduling rules ---------------- */
+const isOff = s => { const w = D.dow(s); return w === 0 || w === 6 || !!holidayName(s); };
+const offReason = s => holidayName(s) || (D.dow(s) === 6 ? 'a Saturday' : 'a Sunday');
+const prevWork = s => { let g = 0; while (isOff(s) && g++ < 10) s = D.add(s, -1); return s; };
+const nextWork = s => { let g = 0; while (isOff(s) && g++ < 10) s = D.add(s, 1); return s; };
+
+// Returns per-step plan: scheduled date, auto date, hard limit, window, whether needed, state.
+function plan(site){
+  const s = site.steps, o = {}, T = D.today();
+  const mk = k => ({k, auto:'', due:'', earliest:'', rule:'', nn:'', tentative:false, scheduled:''});
+  STEPS.forEach(x => o[x.k] = mk(x.k));
+
+  o.init.scheduled = s.init.date;
+  const initEff = s.init.completed || s.init.date;
+  const killAll = s.init.canceled ? 'Initial canceled' : s.init.result === 'pass' ? 'No exceedances at Initial' : '';
+
+  // 10 Day: no later than 10 days after the Initial
+  if (initEff){
+    o.d10.due = D.add(initEff, 10);
+    o.d10.auto = prevWork(o.d10.due);
+    o.d10.rule = `No later than 10 days after the Initial (${D.fmt(initEff)}${s.init.completed ? ', started' : ', scheduled'}).`;
+  }
+  o.d10.scheduled = s.d10.override || o.d10.auto;
+  o.d10.nn = killAll;
+
+  // 20 Day: no later than 10 days after the 10 Day; only if the 10 Day had exceedances
+  const d10Eff = s.d10.completed || o.d10.scheduled;
+  if (d10Eff){
+    o.d20.due = D.add(d10Eff, 10);
+    o.d20.auto = prevWork(o.d20.due);
+    o.d20.rule = `No later than 10 days after the 10 Day (${D.fmt(d10Eff)}${s.d10.completed ? ', started' : ', scheduled'}). Only needed if the 10 Day finds exceedances.`;
+  }
+  o.d20.scheduled = s.d20.override || o.d20.auto;
+  o.d20.nn = killAll || (s.d10.canceled ? '10 Day canceled' : s.d10.result === 'pass' ? 'No exceedances at 10 Day' : '');
+  o.d20.tentative = !s.d10.result;
+
+  // One Month: 28–31 days after the Initial
+  if (initEff){
+    o.m1.earliest = D.add(initEff, 28);
+    o.m1.due = D.add(initEff, 31);
+    const target = D.add(initEff, Math.min(31, Math.max(28, +db.settings.m1Target || 30)));
+    let a = prevWork(target);
+    if (a < o.m1.earliest) a = nextWork(target);
+    if (a > o.m1.due) a = target;
+    o.m1.auto = a;
+    o.m1.rule = `Between 28 and 31 days after the Initial (${D.fmt(initEff)}): window ${D.fmt(o.m1.earliest)} – ${D.fmt(o.m1.due)}.`;
+  }
+  o.m1.scheduled = s.m1.override || o.m1.auto;
+  o.m1.nn = killAll;
+
+  // Plus 10: no later than 10 days after the One Month; only if the One Month had exceedances
+  const m1Eff = s.m1.completed || o.m1.scheduled;
+  if (m1Eff){
+    o.p10.due = D.add(m1Eff, 10);
+    o.p10.auto = prevWork(o.p10.due);
+    o.p10.rule = `No later than 10 days after the One Month (${D.fmt(m1Eff)}${s.m1.completed ? ', started' : ', scheduled'}). Only needed if the One Month finds exceedances.`;
+  }
+  o.p10.scheduled = s.p10.override || o.p10.auto;
+  o.p10.nn = killAll || (s.m1.canceled ? 'One Month canceled' : s.m1.result === 'pass' ? 'No exceedances at One Month' : '');
+  o.p10.tentative = !s.m1.result;
+
+  STEPS.forEach(x => o[x.k].state = stateOf(x.k, s[x.k], o[x.k], T));
+  return o;
+}
+
+function stateOf(k, r, p, T){
+  const flags = [];
+  const soon = +db.settings.soonDays || 3;
+  if (r.completed && p.due && r.completed > p.due) flags.push('Started after limit');
+  if (r.completed && p.earliest && r.completed < p.earliest) flags.push('Started before window');
+  if (!r.completed && p.scheduled && isOff(p.scheduled)) flags.push(`Falls on ${offReason(p.scheduled)}`);
+  if (p.nn) return {code:'nn', cls:'p-nn', label:'Not needed', flags:[], open:false};
+  if (r.canceled) return {code:'cx', cls:'p-nn', label:'Canceled', flags:[], open:false};
+  if (r.result === 'pass') return {code:'pass', cls:'p-ok', label:'No exceedances', flags, open:false};
+  if (r.result === 'fail') return {code:'fail', cls:'p-warn', label:'Exceedances found', flags, open:false};
+  if (r.completed) return {code:'done', cls:'p-warn', label:'Result?', flags, open:false};
+  if (!p.scheduled) return {code:'none', cls:'p-nn', label:'Not scheduled', flags, open:true};
+  if (p.due && p.scheduled > p.due) return {code:'late', cls:'p-bad', label:'Past limit', flags, open:true, bad:true};
+  if (p.earliest && p.scheduled < p.earliest) return {code:'early', cls:'p-bad', label:'Before window', flags, open:true, bad:true};
+  if (p.due && T > p.due) return {code:'overdue', cls:'p-bad', label:'Overdue', flags, open:true, bad:true};
+  if (T > p.scheduled) return {code:'result', cls:'p-warn', label:'Needs result', flags, open:true};
+  const needed = !p.tentative || k === 'init' || k === 'd10' || k === 'm1';
+  if (D.diff(p.scheduled, T) <= soon) return {code:'soon', cls:'p-warn', label: needed ? 'Due soon' : 'Tentative · soon', flags, open:true};
+  if (p.tentative && (k === 'd20' || k === 'p10')) return {code:'tent', cls:'p-nn', label:'Tentative', flags, open:true};
+  if (k === 'd20' || k === 'p10') return {code:'need', cls:'p-warn', label:'Needed', flags, open:true};
+  return {code:'sched', cls:'p-info', label:'Scheduled', flags, open:true};
+}
+
+function siteSummary(site, o){
+  const open = STEPS.filter(x => o[x.k].state.open);
+  const bad = STEPS.some(x => o[x.k].state.bad);
+  const needsResult = STEPS.some(x => ['done','result'].includes(o[x.k].state.code));
+  return {open, bad, complete: !site.steps.init.date ? false : open.length === 0 && !needsResult, next: open.sort((a,b) => (o[a.k].scheduled||'9').localeCompare(o[b.k].scheduled||'9'))[0]};
+}
+
+/* ---------------- Rendering ---------------- */
+let view = 'table', calMonth = D.today().slice(0, 7);
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+// Sort by the Initial date shown in the table (started date if entered, else scheduled); undated last, then by name.
+const initKey = s => s.steps.init.completed || s.steps.init.date || '9999';
+const byInitial = (a, b) => initKey(a).localeCompare(initKey(b)) || a.name.localeCompare(b.name);
+
+function filtered(){
+  const q = $('#fQuarter').value, show = $('#fShow').value, term = $('#fSearch').value.trim().toLowerCase();
+  return db.sites.map(site => ({site, o: plan(site)})).map(x => ({...x, sum: siteSummary(x.site, x.o)})).filter(({site, sum}) => {
+    if (q !== 'all' && Q.of(site) !== q) return false;
+    if (show === 'open' && sum.complete) return false;
+    if (show === 'done' && !sum.complete) return false;
+    if (term && !(`${site.name} ${site.owner} ${site.notes}`.toLowerCase().includes(term))) return false;
+    return true;
+  }).sort((a, b) => byInitial(a.site, b.site));
+}
+
+function renderQuarters(){
+  const sel = $('#fQuarter'), cur = sel.value;
+  const tq = D.quarter(D.today());
+  const count = {};
+  db.sites.forEach(s => { const q = Q.of(s); if (q) count[q] = (count[q] || 0) + 1; });
+  const qs = [...new Set([...Object.keys(count), ...Q.range(tq, 0, 4)])].sort((a, b) => Q.idx(a) - Q.idx(b));
+  sel.innerHTML = `<option value="all">All quarters</option>` + qs.map(q => `<option value="${q}">${q}${q === tq ? ' (current)' : ''} · ${count[q] ? count[q] + ' sites' : 'empty'}</option>`).join('');
+  sel.value = cur && [...sel.options].some(o => o.value === cur) ? cur : 'all';
+}
+
+function render(){
+  document.querySelectorAll('.tab').forEach(b => b.classList.toggle('on', b.dataset.view === view));
+  const rows = filtered();
+  renderSummary(rows);
+  if (view === 'table') renderTable(rows);
+  else if (view === 'agenda') renderAgenda(rows);
+  else renderCal(rows);
+}
+
+function renderSummary(rows){
+  const T = D.today(), wk = D.add(T, 7);
+  let thisWeek = 0, problems = 0, results = 0;
+  rows.forEach(({o}) => STEPS.forEach(x => {
+    const p = o[x.k], st = p.state;
+    if (st.open && p.scheduled && p.scheduled >= T && p.scheduled <= wk && st.code !== 'tent') thisWeek++;
+    if (st.bad) problems++;
+    if (st.code === 'done' || st.code === 'result') results++;
+  }));
+  $('#summary').innerHTML = `
+    <div class="stat"><b>${rows.length}</b><span>sites shown</span></div>
+    <div class="stat"><b>${thisWeek}</b><span>inspections next 7 days</span></div>
+    <div class="stat"><b style="color:${problems ? 'var(--bad)' : 'inherit'}">${problems}</b><span>overdue / past limit</span></div>
+    <div class="stat"><b style="color:${results ? 'var(--warn)' : 'inherit'}">${results}</b><span>awaiting a result</span></div>`;
+}
+
+function cellHTML(site, k, p){
+  const st = p.state, r = site.steps[k];
+  if (st.code === 'nn') return `<div class="cell nn" data-site="${site.id}" data-step="${k}"><div class="dt">—</div><div class="by">${esc(p.nn)}</div></div>`;
+  const shown = r.completed || p.scheduled;
+  let by = '';
+  if (r.completed) by = `Started ${D.fmt(r.completed)}`;
+  else if (k === 'm1' && p.earliest) by = `Window ${D.fmt(p.earliest, {month:'numeric', day:'numeric'})}–${D.fmt(p.due, {month:'numeric', day:'numeric'})}`;
+  else if (p.due) by = `Limit ${D.fmt(p.due)}`;
+  if (r.override && !r.completed) by += ' · manual';
+  return `<div class="cell ${st.code === 'cx' ? 'nn' : ''}" data-site="${site.id}" data-step="${k}">
+    <div class="dt">${shown ? D.fmt(shown) : '—'}</div>
+    <div class="by">${by}</div>
+    <span class="pill ${st.cls}">${st.label}</span>
+    ${st.flags.map(f => `<div class="flag">⚠ ${f}</div>`).join('')}
+  </div>`;
+}
+
+function renderTable(rows){
+  if (!rows.length){
+    const q = $('#fQuarter').value;
+    $('#view').innerHTML = `<div class="wrap"><div class="empty">${q !== 'all' ? `No sites in ${q} yet.<br><br><button class="primary" id="emptyPlan">Plan ${q} from a previous quarter</button> or use <b>+ Add site / initial</b>.` : 'No sites match. Use <b>+ Add site / initial</b> to schedule one.'}</div></div>`;
+    const b = $('#emptyPlan'); if (b) b.onclick = () => openPlanQuarter(q);
+    return;
+  }
+  $('#view').innerHTML = `<div class="wrap"><table>
+    <thead><tr><th>Site</th>${STEPS.map(x => `<th><span class="dot" style="background:${x.color}"></span>${x.label}</th>`).join('')}<th>Notes</th></tr></thead>
+    <tbody>${rows.map(({site, o}) => `<tr>
+      <td class="site"><div class="nm" data-edit-site="${site.id}">${esc(site.name) || '(unnamed)'}</div>
+        <div class="meta">${esc(site.owner)}${site.owner ? ' · ' : ''}${Q.of(site) || 'no quarter'}${site.steps.init.date ? '' : ' · <span style="color:var(--warn)">needs Initial date</span>'}${site.contacted ? ' · contacted ✓' : ''}</div></td>
+      ${STEPS.map(x => `<td>${cellHTML(site, x.k, o[x.k])}</td>`).join('')}
+      <td style="max-width:240px;color:var(--muted);font-size:12px">${esc(site.notes)}</td>
+    </tr>`).join('')}</tbody></table></div>`;
+}
+
+function openItems(rows){
+  const items = [];
+  rows.forEach(({site, o}) => STEPS.forEach(x => {
+    const p = o[x.k];
+    if (p.state.open && p.scheduled) items.push({site, k:x.k, p});
+  }));
+  return items.sort((a, b) => a.p.scheduled.localeCompare(b.p.scheduled));
+}
+
+function renderAgenda(rows){
+  const items = openItems(rows), T = D.today();
+  if (!items.length){ $('#view').innerHTML = `<div class="wrap"><div class="empty">Nothing open.</div></div>`; return; }
+  const weekOf = s => D.add(s, -((D.dow(s) + 6) % 7)); // Monday
+  const groups = {};
+  items.forEach(it => {
+    const g = it.p.state.bad || it.p.scheduled < T ? 'Needs attention' : `Week of ${D.fmt(weekOf(it.p.scheduled), {month:'short', day:'numeric', year:'numeric'})}`;
+    (groups[g] = groups[g] || []).push(it);
+  });
+  $('#view').innerHTML = `<div class="agenda">${Object.entries(groups).map(([g, list]) => `<h3>${g}</h3>` + list.map(({site, k, p}) => `
+    <div class="ag" style="border-left-color:${COLOR[k]}" data-site="${site.id}" data-step="${k}">
+      <div class="w">${D.fmt(p.scheduled)}</div>
+      <div><div><b>${esc(site.name)}</b> — ${LABEL[k]}</div>
+        <div class="s">${p.due ? (k === 'm1' ? `Window ${D.fmt(p.earliest)} – ${D.fmt(p.due)}` : `Must be done by ${D.fmt(p.due)}`) : ''}${site.owner ? ' · ' + esc(site.owner) : ''}${p.tentative && (k === 'd20' || k === 'p10') ? ' · only if previous recheck fails' : ''}</div></div>
+      <span class="pill ${p.state.cls}">${p.state.label}</span>
+    </div>`).join('')).join('')}</div>`;
+}
+
+function renderCal(rows){
+  const items = openItems(rows);
+  rows.forEach(({site, o}) => STEPS.forEach(x => { const r = site.steps[x.k]; if (r.completed && o[x.k].state.code !== 'nn') items.push({site, k:x.k, p:{...o[x.k], scheduled:r.completed}, done:true}); }));
+  const byDay = {};
+  items.forEach(it => (byDay[it.p.scheduled] = byDay[it.p.scheduled] || []).push(it));
+  const first = calMonth + '-01';
+  const start = D.add(first, -D.dow(first));
+  const T = D.today(), m = calMonth;
+  let cells = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d => `<div class="dow">${d}</div>`).join('');
+  for (let i = 0; i < 42; i++){
+    const d = D.add(start, i);
+    if (i === 35 && d.slice(0, 7) !== m) break;
+    const list = (byDay[d] || []).sort((a, b) => a.site.name.localeCompare(b.site.name));
+    cells += `<div class="day ${isOff(d) ? 'we' : ''} ${d.slice(0, 7) !== m ? 'out' : ''} ${d === T ? 'today' : ''}">
+      <span class="n">${+d.slice(8)}</span>${holidayName(d) ? `<span class="hol">${esc(holidayName(d))}</span>` : ''}
+      ${list.map(({site, k, p, done}) => `<span class="chip ${p.tentative && (k === 'd20' || k === 'p10') && !done ? 'tent' : ''}" style="background:${COLOR[k]};${done ? 'opacity:.45' : ''}" data-site="${site.id}" data-step="${k}" title="${esc(site.name)} — ${LABEL[k]} · ${p.state.label}">${done ? '✓ ' : p.state.bad ? '⚠ ' : ''}${esc(site.name)} · ${LABEL[k]}</span>`).join('')}
+    </div>`;
+  }
+  $('#view').innerHTML = `<div class="calhead">
+      <button id="calPrev">‹</button><h2>${D.fmt(first, {month:'long', year:'numeric'})}</h2><button id="calNext">›</button>
+      <button id="calToday">Today</button>
+      <span style="color:var(--muted);font-size:12px">${STEPS.map(x => `<span class="dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${x.color};margin:0 4px 0 10px"></span>${x.label}`).join('')}</span>
+    </div><div class="cal">${cells}</div>`;
+  const shift = n => { const d = D.parse(calMonth + '-01'); d.setUTCMonth(d.getUTCMonth() + n); calMonth = D.iso(d).slice(0, 7); render(); };
+  $('#calPrev').onclick = () => shift(-1);
+  $('#calNext').onclick = () => shift(1);
+  $('#calToday').onclick = () => { calMonth = D.today().slice(0, 7); render(); };
+}
+
+/* ---------------- Step editor ---------------- */
+function openStep(siteId, k){
+  const site = db.sites.find(s => s.id === siteId); if (!site) return;
+  const o = plan(site), p = o[k], r = site.steps[k];
+  const draft = {...r};
+  const f = $('#formStep');
+  const isInit = k === 'init';
+  const draw = () => {
+    f.innerHTML = `
+      <h2>${esc(site.name)} — ${LABEL[k]}</h2>
+      <div class="sub">${esc(site.owner)} <span class="pill ${p.state.cls}">${p.state.label}</span></div>
+      ${p.nn ? `<div class="rule">Not needed: ${esc(p.nn)}. Change the earlier inspection's result to bring it back.</div>` : ''}
+      ${p.rule ? `<div class="rule">${p.rule}<br><b>${k === 'm1' ? 'Latest allowed' : 'Hard limit'}: ${D.fmtY(p.due)}</b>${p.auto ? ` · Auto-scheduled: ${D.fmtY(p.auto)}` : ''}</div>` : ''}
+      <div class="field">
+        <label>${isInit ? 'Initial scheduled date' : 'Scheduled date'}</label>
+        <input type="date" name="sched" value="${isInit ? (draft.date || '') : (draft.override || p.auto || '')}">
+        ${!isInit ? `<div class="hint">${draft.override ? `Manually set. <button type="button" class="link" id="useAuto">Use auto date (${D.fmt(p.auto)})</button>` : 'Auto-calculated. Pick a different date to schedule early; later inspections update to match.'}</div>` : '<div class="hint">Follow-ups are planned from this date until a started date is entered.</div>'}
+      </div>
+      <div class="field">
+        <label>Started date</label>
+        <input type="date" name="completed" value="${draft.completed || ''}">
+        <div class="hint">Once entered, every later inspection is scheduled from this start date.</div>
+      </div>
+      <div class="field">
+        <label>Result</label>
+        <div class="seg">
+          <button type="button" data-res="pass" class="${draft.result === 'pass' ? 'on' : ''}">✓ No exceedances</button>
+          <button type="button" data-res="fail" class="${draft.result === 'fail' ? 'on' : ''}">✗ Exceedances found</button>
+          <button type="button" data-res="" class="${!draft.result ? 'on' : ''}">Not yet</button>
+        </div>
+        <div class="hint">${({init:'No exceedances cancels all follow-ups for this site.', d10:'No exceedances cancels the 20 Day.', m1:'No exceedances cancels the Plus 10 Day.', d20:'', p10:''})[k]}</div>
+      </div>
+      <div class="field"><label><input type="checkbox" name="canceled" ${draft.canceled ? 'checked' : ''}> Canceled${isInit ? ' (cancels the whole site event)' : ''}</label></div>
+      <div class="acts">
+        <span class="left"><button type="button" id="editSite">Edit site…</button></span>
+        <button value="cancel">Close</button>
+        <button value="save" class="primary">Save</button>
+      </div>`;
+    f.querySelectorAll('[data-res]').forEach(b => b.onclick = () => { capture(); draft.result = b.dataset.res; if (draft.result && !draft.completed) draft.completed = isInit ? draft.date : (draft.override || p.auto); draw(); });
+    const ua = f.querySelector('#useAuto'); if (ua) ua.onclick = () => { capture(); draft.override = ''; draw(); };
+    f.querySelector('#editSite').onclick = () => { $('#dlgStep').close(); openSite(site.id); };
+  };
+  const capture = () => {
+    const v = f.elements.sched.value;
+    if (isInit) draft.date = v; else draft.override = (v && v !== p.auto) ? v : '';
+    draft.completed = f.elements.completed.value;
+    draft.canceled = f.elements.canceled.checked;
+  };
+  draw();
+  const dlg = $('#dlgStep');
+  f.onsubmit = ev => {
+    f.onsubmit = null;
+    if (!ev.submitter || ev.submitter.value !== 'save') return;
+    capture();
+    site.steps[k] = draft;
+    save(); renderQuarters(); render();
+  };
+  dlg.returnValue = '';
+  dlg.showModal();
+}
+
+/* ---------------- Site editor ---------------- */
+function openSite(id, prefill){
+  const existing = id ? db.sites.find(s => s.id === id) : null;
+  const site = existing || {id:uid(), name:'', owner:'', notes:'', contacted:false, quarter:'', steps:blankSteps(), ...(prefill || {})};
+  const f = $('#formSite');
+  const tq = D.quarter(D.today()), fq = $('#fQuarter').value;
+  const qSel = Q.of(site) || (fq !== 'all' ? fq : tq);
+  const qOpts = [...new Set([...Q.range(tq, 4, 8), qSel])].sort((a, b) => Q.idx(a) - Q.idx(b));
+  f.innerHTML = `
+    <h2>${existing ? 'Edit site event' : 'New site event'}</h2>
+    <div class="sub">One row = one quarterly monitoring event at a site.</div>
+    <div class="field"><label>Site</label><input type="text" name="name" value="${esc(site.name)}" required list="siteNames"></div>
+    <datalist id="siteNames">${[...new Set(db.sites.map(s => s.name))].map(n => `<option value="${esc(n)}">`).join('')}</datalist>
+    <div class="field"><label>Owner</label><input type="text" name="owner" value="${esc(site.owner)}" placeholder="WC, MUNI, GFL…"></div>
+    <div class="field"><label>Quarter</label><select name="quarter">${qOpts.map(q => `<option ${q === qSel ? 'selected' : ''}>${q}</option>`).join('')}</select>
+      <div class="hint">Lets you plan a site into a future quarter before its date is known. Once an Initial date is entered, the quarter follows the date.</div></div>
+    <div class="field"><label>Initial scheduled date</label><input type="date" name="init" value="${site.steps.init.date || ''}">
+      <div class="hint">The 10 Day, 20 Day, One Month and Plus 10 Day are scheduled from this automatically. Can be left blank for now.</div></div>
+    <div class="field"><label>Notes</label><textarea name="notes" rows="3">${esc(site.notes)}</textarea></div>
+    <div class="field"><label><input type="checkbox" name="contacted" ${site.contacted ? 'checked' : ''}> Site contacted</label></div>
+    <div class="acts">
+      ${existing ? `<span class="left"><button type="button" class="danger" id="delSite">Delete</button><button type="button" id="nextQ">Copy to next quarter</button></span>` : ''}
+      <button value="cancel" formnovalidate>Close</button>
+      <button value="save" class="primary">Save</button>
+    </div>`;
+  const dlg = $('#dlgSite');
+  if (existing){
+    f.querySelector('#delSite').onclick = () => { if (confirm(`Delete ${site.name}?`)) { db.sites = db.sites.filter(s => s.id !== site.id); save(); dlg.close(); renderQuarters(); render(); } };
+    f.querySelector('#nextQ').onclick = () => {
+      dlg.close();
+      const base = site.steps.init.date;
+      const steps = blankSteps();
+      if (base) steps.init.date = prevWork(D.addMonths(base, 3));
+      openSite(null, {name:site.name, owner:site.owner, notes:site.notes, quarter: Q.of(site) ? Q.shift(Q.of(site), 1) : '', steps});
+    };
+  }
+  f.onsubmit = ev => {
+    f.onsubmit = null;
+    if (!ev.submitter || ev.submitter.value !== 'save') return;
+    site.name = f.elements.name.value.trim();
+    site.owner = f.elements.owner.value.trim();
+    site.notes = f.elements.notes.value;
+    site.contacted = f.elements.contacted.checked;
+    site.steps.init.date = f.elements.init.value;
+    site.quarter = site.steps.init.date ? D.quarter(site.steps.init.date) : f.elements.quarter.value;
+    if (!existing) db.sites.push(site);
+    save(); renderQuarters(); render();
+  };
+  dlg.returnValue = '';
+  dlg.showModal();
+}
+
+/* ---------------- Plan a future quarter (roll sites forward) ---------------- */
+function openPlanQuarter(target){
+  const tq = D.quarter(D.today());
+  const withSites = [...new Set(db.sites.map(Q.of).filter(Boolean))].sort((a, b) => Q.idx(a) - Q.idx(b));
+  const latest = withSites[withSites.length - 1] || tq;
+  const st = {target: target || Q.shift(latest, 1), source: '', dates: 'shift'};
+  const pickSource = () => withSites.filter(q => Q.idx(q) < Q.idx(st.target)).pop() || withSites[withSites.length - 1] || '';
+  st.source = pickSource();
+  const f = $('#formQuarter'), dlg = $('#dlgQuarter');
+  let checked = null;
+  const draw = () => {
+    const src = db.sites.filter(s => Q.of(s) === st.source).sort(byInitial);
+    const have = new Set(db.sites.filter(s => Q.of(s) === st.target).map(s => s.name.trim().toLowerCase()));
+    const months = (Q.idx(st.target) - Q.idx(st.source || st.target)) * 3;
+    if (!checked) checked = new Set(src.filter(s => !have.has(s.name.trim().toLowerCase())).map(s => s.id));
+    const newDate = s => {
+      if (st.dates !== 'shift' || !s.steps.init.date || !months) return '';
+      const a = D.addMonths(s.steps.init.date, months), p = prevWork(a);
+      return D.quarter(p) === st.target ? p : nextWork(a); // don't let the weekend shift push it into the previous quarter
+    };
+    f.innerHTML = `
+      <h2>Plan a quarter</h2>
+      <div class="sub">Copies sites from an earlier quarter into a future one, with fresh inspections.</div>
+      <div class="field"><label>Quarter to plan</label><select name="target">${Q.range(tq, 1, 8).map(q => `<option ${q === st.target ? 'selected' : ''}>${q}</option>`).join('')}</select></div>
+      <div class="field"><label>Copy sites from</label><select name="source">${withSites.length ? withSites.map(q => `<option ${q === st.source ? 'selected' : ''}>${q}</option>`).join('') : '<option value="">(no quarters yet)</option>'}</select></div>
+      <div class="field"><label>Initial dates</label>
+        <label style="font-weight:400;color:inherit"><input type="radio" name="dates" value="shift" ${st.dates === 'shift' ? 'checked' : ''}> Same time ${months ? months + ' months' : ''} later (moved to a weekday)</label>
+        <label style="font-weight:400;color:inherit"><input type="radio" name="dates" value="blank" ${st.dates === 'blank' ? 'checked' : ''}> Leave blank, I'll enter them</label></div>
+      <div class="field"><label>Sites (${checked.size} selected)</label>
+        <div style="max-height:240px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:6px 8px">
+        ${src.length ? src.map(s => { const dup = have.has(s.name.trim().toLowerCase()); return `<label style="display:flex;gap:8px;align-items:center;font-weight:400;color:${dup ? 'var(--muted)' : 'inherit'};padding:3px 0">
+          <input type="checkbox" data-pick="${s.id}" ${checked.has(s.id) ? 'checked' : ''} ${dup ? 'disabled' : ''}>
+          <span style="flex:1">${esc(s.name)} <span style="color:var(--muted)">${esc(s.owner)}</span></span>
+          <span style="font-size:12px;color:var(--muted)">${dup ? `already in ${st.target}` : newDate(s) ? D.fmt(newDate(s)) : 'no date'}</span></label>`; }).join('') : '<div class="hint">No sites in that quarter.</div>'}
+        </div></div>
+      <div class="acts"><button value="cancel">Close</button><button value="save" class="primary" ${checked.size ? '' : 'disabled'}>Add ${checked.size} sites to ${st.target}</button></div>`;
+    f.elements.target.onchange = e => { st.target = e.target.value; st.source = pickSource(); checked = null; draw(); };
+    f.elements.source.onchange = e => { st.source = e.target.value; checked = null; draw(); };
+    f.querySelectorAll('input[name=dates]').forEach(r => r.onchange = () => { st.dates = r.value; draw(); });
+    f.querySelectorAll('[data-pick]').forEach(c => c.onchange = () => { c.checked ? checked.add(c.dataset.pick) : checked.delete(c.dataset.pick); draw(); });
+    st.newDate = newDate;
+  };
+  draw();
+  f.onsubmit = ev => {
+    f.onsubmit = null;
+    if (!ev.submitter || ev.submitter.value !== 'save') return;
+    db.sites.filter(s => checked.has(s.id)).forEach(s => {
+      const steps = blankSteps();
+      steps.init.date = st.newDate(s);
+      if (steps.init.date && D.quarter(steps.init.date) !== st.target) steps.init.date = ''; // date drifted out of the quarter; leave for the user
+      db.sites.push({id:uid(), name:s.name, owner:s.owner, notes:s.notes, contacted:false, quarter:st.target, steps});
+    });
+    save(); renderQuarters(); $('#fQuarter').value = st.target; render();
+  };
+  dlg.returnValue = '';
+  dlg.showModal();
+}
+
+/* ---------------- Settings ---------------- */
+function openSettings(){
+  const f = $('#formSettings'), st = db.settings;
+  f.innerHTML = `
+    <h2>Settings</h2>
+    <div class="field"><label>One Month target day (28–31 after Initial)</label><input type="number" name="m1" min="28" max="31" value="${st.m1Target}">
+      <div class="hint">Lands on the previous weekday if it falls on a weekend, never earlier than day 28.</div></div>
+    <div class="field"><label>"Due soon" warning (days ahead)</label><input type="number" name="soon" min="0" max="14" value="${st.soonDays}"></div>
+    <div class="field"><label>Holidays to avoid (calculated every year)</label>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:2px 10px">
+      ${HOLIDAYS.map(h => `<label style="font-weight:400;color:inherit;margin:0"><input type="checkbox" data-hol="${h.k}" ${st.skipHolidays.includes(h.k) ? 'checked' : ''}> ${h.name} <span style="color:var(--muted);font-size:11px">${D.fmt(h.f(+D.today().slice(0, 4)), {month:'short', day:'numeric'})}</span></label>`).join('')}
+      </div>
+      <div class="hint">Inspections that land on one of these move to the previous workday, like weekends. Dates shown are this year's observed dates.</div></div>
+    <div class="field"><label>Other days off (one date per line, YYYY-MM-DD)</label><textarea name="hol" rows="3" placeholder="2026-12-31">${st.holidays.join('\n')}</textarea></div>
+    <div class="acts"><button value="cancel">Close</button><button value="save" class="primary">Save</button></div>`;
+  const dlg = $('#dlgSettings');
+  f.onsubmit = ev => {
+    f.onsubmit = null;
+    if (!ev.submitter || ev.submitter.value !== 'save') return;
+    st.m1Target = Math.min(31, Math.max(28, +f.elements.m1.value || 30));
+    st.soonDays = Math.max(0, +f.elements.soon.value || 0);
+    st.holidays = f.elements.hol.value.split(/\s+/).filter(s => /^\d{4}-\d{2}-\d{2}$/.test(s));
+    st.skipHolidays = [...f.querySelectorAll('[data-hol]')].filter(c => c.checked).map(c => c.dataset.hol);
+    save(); render();
+  };
+  dlg.returnValue = '';
+  dlg.showModal();
+}
+
+/* ---------------- Export / import ---------------- */
+function download(name, text, type){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], {type}));
+  a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+function exportCsv(){
+  const head = ['Site','Owner','Quarter','Initial Scheduled','Initial Started','10 Day Scheduled','10 Day Started','20 Day Scheduled','20 Day Started','One month scheduled','One month Started','Plus 10 Day Scheduled','Plus 10 Day Started','Site Contacted','Notes'];
+  const q = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const lines = [head.map(q).join(',')];
+  filtered().forEach(({site, o}) => {
+    const row = [site.name, site.owner, Q.of(site)];
+    STEPS.forEach(x => {
+      const st = o[x.k].state, r = site.steps[x.k];
+      if (st.code === 'nn' || st.code === 'cx') row.push('X', 'X');
+      else row.push(o[x.k].scheduled || '', r.completed || '');
+    });
+    row.push(site.contacted ? 'Y' : '', site.notes);
+    lines.push(row.map(q).join(','));
+  });
+  download('recheck-schedule.csv', lines.join('\r\n'), 'text/csv');
+}
+function exportIcs(){
+  const stamp = new Date().toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z';
+  const t = s => String(s).replace(/[\\,;]/g, m => '\\' + m).replace(/\n/g, '\\n');
+  const ev = [];
+  openItems(filtered()).forEach(({site, k, p}) => {
+    const d = p.scheduled.replace(/-/g, ''), e = D.add(p.scheduled, 1).replace(/-/g, '');
+    const desc = `${p.rule} ${k === 'm1' ? 'Latest allowed' : 'Hard limit'}: ${p.due ? D.fmtY(p.due) : 'n/a'}. Owner: ${site.owner}. ${site.notes || ''}`;
+    ev.push(['BEGIN:VEVENT', `UID:${site.id}-${k}@atm51-scheduler`, `DTSTAMP:${stamp}`, `DTSTART;VALUE=DATE:${d}`, `DTEND;VALUE=DATE:${e}`,
+      `SUMMARY:${t(`${site.name} – ${LABEL[k]}${p.tentative && (k === 'd20' || k === 'p10') ? ' (tentative)' : ''}`)}`, `DESCRIPTION:${t(desc)}`, 'TRANSP:TRANSPARENT', 'END:VEVENT'].join('\r\n'));
+  });
+  download('recheck-schedule.ics', ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//OTM-51 Recheck Scheduler//EN', 'CALSCALE:GREGORIAN', ...ev, 'END:VCALENDAR'].join('\r\n'), 'text/calendar');
+}
+
+/* ---------------- Seed: 2026 Q4 sheet from the quarterly workbook ---------------- */
+function seed(){
+  const N1 = 'The site does its own rechecks. Needs Reminders should be sent out from the compliance manager.';
+  const mk = (name, owner, init, opts = {}) => {
+    const steps = blankSteps();
+    steps.init.date = init;
+    Object.entries(opts.steps || {}).forEach(([k, v]) => Object.assign(steps[k], v));
+    return {id:uid(), name, owner, notes:opts.notes || '', contacted:!!opts.contacted, steps};
+  };
+  const cx = {canceled:true};
+  return [
+    mk('Anderson Regional LF (SC)', 'WC', '2026-11-18', {notes:N1, contacted:true}),
+    mk('Sampson (NC)', 'GFL', '2026-11-10', {notes:N1, contacted:true}),
+    mk('Anson (NC)', 'WC', '2026-11-12', {notes:N1, contacted:true}),
+    mk('LRI 304th', 'WC', '2026-10-05', {notes:N1, contacted:true, steps:{init:{completed:'2026-10-07'}}}),
+    mk('Hidden Valley', 'WC', '2026-10-08', {notes:N1, contacted:true, steps:{init:{completed:'2026-10-08'}}}),
+    mk('Port Angeles', 'MUNI', '2026-11-28', {contacted:true, steps:{m1:cx, p10:cx}}),
+    mk('Winnebago', 'WC', '2026-11-11'),
+    mk('Quad Cities', 'WC', '2026-11-10'),
+    mk('Champ Landfill', 'WC', '2026-11-23'),
+    mk('MOA', 'MUNI', '2026-10-21', {contacted:true, steps:{init:{completed:'2026-10-21', result:'fail'}, d10:{completed:'2026-10-30', result:'pass'}}}),
+    mk('Marquette', 'MUNI', '2026-10-22', {steps:{init:{completed:'2026-10-22', result:'fail'}, d10:{completed:'2026-10-22', result:'pass'}}}),
+    mk('Walla Walla (Sudbury)', 'MUNI', '2026-11-07', {notes:'Perspectum', steps:{d10:cx, d20:cx, m1:cx, p10:cx}}),
+    mk('Lane Co.', 'MUNI', '2026-11-14', {notes:'Perspectum'}),
+    mk('Tuscarora LF', 'CEP', '2026-11-24', {notes:'Labella'}),
+    mk('Cowlitz LF HQ', 'MUNI', '2026-10-20', {notes:'Apex', steps:{init:{completed:'2026-10-22', result:'fail'}, d10:{completed:'2026-10-27', result:'pass'}, m1:cx}}),
+  ];
+}
+
+/* ---------------- Wiring ---------------- */
+document.addEventListener('click', e => {
+  const tab = e.target.closest('.tab'); if (tab){ view = tab.dataset.view; render(); return; }
+  const c = e.target.closest('[data-step]'); if (c && c.dataset.site){ openStep(c.dataset.site, c.dataset.step); return; }
+  const s = e.target.closest('[data-edit-site]'); if (s){ openSite(s.dataset.editSite); }
+});
+$('#btnAdd').onclick = () => openSite(null);
+$('#btnPlanQ').onclick = () => openPlanQuarter($('#fQuarter').value !== 'all' && !db.sites.some(s => Q.of(s) === $('#fQuarter').value) ? $('#fQuarter').value : '');
+$('#btnSettings').onclick = openSettings;
+$('#btnCsv').onclick = exportCsv;
+$('#btnIcs').onclick = exportIcs;
+$('#btnBackup').onclick = () => download(`recheck-backup-${D.today()}.json`, JSON.stringify(db, null, 2), 'application/json');
+$('#btnRestore').onclick = () => $('#fileRestore').click();
+$('#fileRestore').onchange = async e => {
+  const file = e.target.files[0]; if (!file) return;
+  try { const d = JSON.parse(await file.text()); if (!Array.isArray(d.sites)) throw 0; if (confirm(`Replace current data with ${d.sites.length} site events from ${file.name}?`)) { db = d; db.settings = migrateSettings(d.settings); save(); renderQuarters(); render(); } }
+  catch { alert('That file is not a scheduler backup.'); }
+  e.target.value = '';
+};
+['#fQuarter', '#fShow'].forEach(s => $(s).onchange = render);
+$('#fSearch').oninput = render;
+renderQuarters();
+$('#fQuarter').value = D.quarter(D.today());
+render();
+</script>
+</body>
+</html>

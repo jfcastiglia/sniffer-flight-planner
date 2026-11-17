@@ -6,13 +6,55 @@ body {
     height: 100vh;
     overflow: hidden;
     background: #111318;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ── Top tabs (Flight Planner / OTM-51 Schedule) ── */
+
+#topTabs {
+    flex-shrink: 0;
+    display: flex;
+    gap: 2px;
+    padding: 4px 8px 0;
+    background: #0d0f13;
+    border-bottom: 1px solid #242731;
+}
+
+.top-tab {
+    display: inline-block;
+    width: auto;
+    margin: 0;
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #8a93a6;
+    background: transparent;
+    border: 1px solid transparent;
+    border-bottom: none;
+    border-radius: 6px 6px 0 0;
+    cursor: pointer;
+}
+
+.top-tab:hover { color: #dde1e8; background: #1a1d25; }
+
+.top-tab.on {
+    color: #fff;
+    background: #16181f;
+    border-color: #242731;
 }
 
 #app {
     display: flex;
-    height: 100vh;
+    flex: 1;
+    min-height: 0;
     width: 100vw;
 }
+
+#app[hidden], #otm51View[hidden] { display: none; }
+
+#otm51View { flex: 1; min-height: 0; }
+#otm51View iframe { display: block; width: 100%; height: 100%; border: 0; }
 
 /* ── Sidebar ── */
 
@@ -285,7 +327,7 @@ button:active { transform: translateY(1px); opacity: 0.85; }
 
 /* ── Map ── */
 
-#map { flex: 1; height: 100vh; }
+#map { flex: 1; height: 100%; }
 
 /* ── Leaflet custom pane z-order ── */
 .leaflet-boundary-pane { z-index: 350 !important; }

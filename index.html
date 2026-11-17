@@ -11,6 +11,10 @@
     <link rel="stylesheet" href="static/styles.css">
 </head>
 <body>
+<nav id="topTabs">
+    <button class="top-tab on" data-tab="planner">Flight Planner</button>
+    <button class="top-tab" data-tab="otm51">OTM-51 Schedule</button>
+</nav>
 <div id="app">
 
     <div id="sidebar">
@@ -131,6 +135,11 @@
 <div id="ctxMenu" class="point-menu hidden"></div>
 </div>
 
+<!-- OTM-51 recheck scheduler (self-contained page, loaded on first open) -->
+<div id="otm51View" hidden>
+    <iframe id="otm51Frame" title="OTM-51 Schedule"></iframe>
+</div>
+
 <!-- Leaflet -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
@@ -147,5 +156,22 @@
 <script src="https://cdn.jsdelivr.net/npm/georaster-layer-for-leaflet@3.10.0/dist/georaster-layer-for-leaflet.min.js"></script>
 
 <script src="static/main.js"></script>
+<script>
+// Top-level tabs. The tab is kept in the URL hash (#otm51) so a refresh stays put.
+(function () {
+    const views = { planner: document.getElementById("app"), otm51: document.getElementById("otm51View") };
+    const frame = document.getElementById("otm51Frame");
+    function show(tab) {
+        if (!views[tab]) tab = "planner";
+        Object.entries(views).forEach(([k, el]) => { el.hidden = k !== tab; });
+        document.querySelectorAll(".top-tab").forEach(b => b.classList.toggle("on", b.dataset.tab === tab));
+        if (tab === "otm51" && !frame.src) frame.src = "static/otm51.html";
+        if (tab === "planner" && typeof map !== "undefined" && map) setTimeout(() => map.invalidateSize(), 0);
+        history.replaceState(null, "", tab === "planner" ? location.pathname : "#" + tab);
+    }
+    document.querySelectorAll(".top-tab").forEach(b => b.addEventListener("click", () => show(b.dataset.tab)));
+    show(location.hash.slice(1));
+})();
+</script>
 </body>
 </html>
