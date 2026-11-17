@@ -1307,15 +1307,23 @@ function initControls() {
     // Delete
     $("deletePlanBtn").addEventListener("click", deleteActive);
 
-    // Import KMZ
+    // Import KMZ (supports multiple files)
     $("importKmzBtn").addEventListener("click", async () => {
-        const f = $("importKmzFile").files[0];
-        if (!f) { alert("Select a KMZ file."); return; }
-        try {
-            const n = await importKMZ(f);
-            if (n === 0) alert("No flight plans found in the KMZ file.");
-            $("importKmzFile").value = "";
-        } catch (e) { console.error(e); alert("Import failed: " + e.message); }
+        const files = Array.from($("importKmzFile").files);
+        if (!files.length) { alert("Select one or more KMZ files."); return; }
+        let total = 0;
+        const errors = [];
+        for (const f of files) {
+            try {
+                total += await importKMZ(f);
+            } catch (e) {
+                console.error(e);
+                errors.push(f.name + ": " + e.message);
+            }
+        }
+        $("importKmzFile").value = "";
+        if (errors.length) alert("Some files failed to import:\n" + errors.join("\n"));
+        else if (total === 0) alert("No flight plans found in the selected files.");
     });
 
     // Coverage
